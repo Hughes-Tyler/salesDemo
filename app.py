@@ -20,6 +20,35 @@ data = load_data()
 min_date = data['Order Date'].min()
 max_date = data['Order Date'].max()
 
+st.markdown(
+    """
+    <style>
+    .metric-card {
+        border: 1px solid #e6e6e6;
+        padding: 16px;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 16px;
+        text-align: center;
+    }
+    .metric-card h3 {
+        font-size: 1.2em;
+        margin-bottom: 8px;
+        color: #333333;
+    }
+    .metric-value {
+        font-size: 2em;
+        font-weight: bold;
+    }
+    .metric-delta {
+        font-size: 1em;
+        color: #666666;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 # Configuration section with an expander
 with st.expander("**Configuration**", icon="⚙"):
     configuration_row = st.columns([1, 1, 0.5, 1.5], gap="large")
@@ -73,45 +102,42 @@ def compute_delta(current_value, previous_value):
         return 0  # Avoid division by zero
     return ((current_value - previous_value) / previous_value) * 100
 
-# Display KPI Overview
-st.subheader("Overview", anchor=False)
-
-# Create KPI cards with metrics and sparklines
-cards_row = st.container()
-with cards_row:
-    cards_columns = st.columns(4)
-
 # Define labels, values, previous values, and formatting for KPIs
 kpi_data = [
-    ("Number Orders", n_orders, n_orders_previous_period, lambda value: value, 'Order ID'),
-    ("Total Sales", sales, sales_previous_period, lambda value: f"{value:,.2f} $".replace(",", " "), 'Sales'),
-    ("Total Profit", profit, profit_previous_period, lambda value: f"{value:,.2f} $".replace(",", " "), 'Profit'),
-    ("Profit Ratio", profit_ratio, profit_ratio_previous_period, lambda value: f"{value:,.2f} %".replace(",", " "), 'Profit')
+    ("Number of Orders", n_orders, n_orders_previous_period, lambda value: value),
+    ("Total Sales", sales, sales_previous_period, lambda value: f"${value:,.2f}".replace(",", ",")),
+    ("Total Profit", profit, profit_previous_period, lambda value: f"${value:,.2f}".replace(",", ",")),
+    ("Profit Ratio", profit_ratio, profit_ratio_previous_period, lambda value: f"{value:,.2f} %".replace(",", ","))
 ]
 
-for (label, value, previous_value, format_func, column_name), column in zip(kpi_data, cards_columns):
-    with column.container():
-        card = st.columns((1, 1))
+# Create a row for KPI cards with bordered styles
+cards_row = st.columns(4)
+
+# Iterate over KPIs to create bordered metric cards
+for (label, value, previous_value, format_func), column in zip(kpi_data, cards_row):
+    with column:
+        delta = compute_delta(value, previous_value)
         
-        with card[0]:
-            st.metric(
-                label=label,
-                value=format_func(value),
-                delta=f"{compute_delta(value, previous_value):.2f}% to prev. period"
-            )
-        with card[1]:
-            # Generate sparkline data using the specified column name
-            fig = go.Figure(go.Scatter(
-                x=filtered_data['Order Date'],
-                y=filtered_data[column_name],  # Using the exact column name
-                mode="lines+markers"
-            ))
-            fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=50)
-            
-            # Assign a unique key to each chart
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-                config=dict(displayModeBar=False),
-                key=f"sparkline_{label}"
-            )
+        # Render bordered card
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <h3>{label}</h3>
+                <div class="metric-value">{format_func(value)}</div>
+                <div class="metric-delta">{delta:.2f}% to prev. period</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+st.write("\n")
+
+
+################################################
+### Row 3 - Period detail
+################################################
+
+
+st.subheader(
+    "Category Analysis",
+    anchor=False,
+)
